@@ -344,7 +344,7 @@ export default function TaskRow({
   );
 }
 
-// "2026-10-20" -> "Oct 20" (parsed as a plain date, no timezone shift).
+// "2025-03-14" -> "Mar 14" (parsed as a plain date, no timezone shift).
 function shortDate(isoDate: string) {
   const [y, m, d] = isoDate.split("-").map(Number);
   return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });

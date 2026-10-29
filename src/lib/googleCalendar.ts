@@ -204,7 +204,7 @@ export function layoutDayEvents(events: CalendarEvent[], dateStr: string) {
 
 // Combines a date (YYYY-MM-DD) and a plain time-input value (HH:MM) into a
 // full RFC3339 timestamp in the user's timezone. Google requires an explicit
-// offset; a bare "2026-08-26T09:00:00" isn't valid on its own.
+// offset; a bare "2025-03-14T09:00:00" isn't valid on its own.
 export function buildLocalISO(dateStr: string, timeStr: string) {
   const offset = userUtcOffset(new Date(`${dateStr}T12:00:00Z`));
   return `${dateStr}T${timeStr}:00${offset}`;
