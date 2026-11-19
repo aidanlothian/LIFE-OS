@@ -206,9 +206,22 @@ export function layoutDayEvents(events: CalendarEvent[], dateStr: string) {
 // Combines a date (YYYY-MM-DD) and a plain time-input value (HH:MM) into a
 // full RFC3339 timestamp in the user's timezone. Google requires an explicit
 // offset; a bare "2025-03-14T09:00:00" isn't valid on its own.
+//
+// The offset is taken at that exact moment, not once for the whole day: on a
+// daylight-saving change day the offset at noon differs from the offset at,
+// say, 00:30, which used to put events an hour off. First guess the offset
+// treating the time as UTC, then re-check it at the resulting instant.
 export function buildLocalISO(dateStr: string, timeStr: string) {
-  const offset = userUtcOffset(new Date(`${dateStr}T12:00:00Z`));
+  const guess = userUtcOffset(new Date(`${dateStr}T${timeStr}:00Z`));
+  const offset = userUtcOffset(new Date(`${dateStr}T${timeStr}:00${guess}`));
   return `${dateStr}T${timeStr}:00${offset}`;
+}
+
+// The calendar date after dateStr (YYYY-MM-DD), as YYYY-MM-DD.
+function nextDateStr(dateStr: string) {
+  const d = new Date(`${dateStr}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
 }
 
 // Most events don't carry an explicit colorId — they just render in
@@ -231,10 +244,11 @@ export async function fetchTodaysEvents(
   accessToken: string,
   dateStr: string
 ): Promise<CalendarEvent[]> {
-  const offset = userUtcOffset(new Date(`${dateStr}T12:00:00Z`));
+  // Midnight to midnight in the user's timezone, each end with its own
+  // offset so daylight-saving change days don't lose or gain an hour.
   const params = new URLSearchParams({
-    timeMin: `${dateStr}T00:00:00${offset}`,
-    timeMax: `${dateStr}T23:59:59${offset}`,
+    timeMin: buildLocalISO(dateStr, "00:00"),
+    timeMax: buildLocalISO(nextDateStr(dateStr), "00:00"),
     singleEvents: "true",
     orderBy: "startTime",
   });

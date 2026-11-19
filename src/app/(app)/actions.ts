@@ -89,21 +89,30 @@ function matchesRecurrence(
 // add/update, so a newly (or just-)recurring-today template shows up right
 // away instead of waiting for newDay()'s once-per-day gate below to reset
 // tomorrow.
+//
+// Returns whether the spawn actually succeeded. Supabase calls don't throw,
+// so a failed read or write has to be checked by hand; newDay() only marks
+// the day as done when this returns true, so a transient error retries on
+// the next page load instead of silently skipping the day's recurring tasks.
 export async function spawnDueRecurringTasks(
   supabase: ReturnType<typeof createClient>,
   userId: string
-) {
-  const { data: templates } = await supabase
+): Promise<boolean> {
+  const { data: templates, error } = await supabase
     .from("recurring_templates")
     .select("id, title, section, sort_order, recurrence_type, days_of_week, yearly_month, yearly_day")
     .eq("user_id", userId)
     .eq("active", true);
+  if (error) {
+    console.error("spawnDueRecurringTasks: reading templates failed", error);
+    return false;
+  }
 
   const today = getAppDay();
   const dueTemplates = (templates ?? []).filter((t) => matchesRecurrence(t, today));
 
   if (dueTemplates.length > 0) {
-    await supabase
+    const { error: upsertError } = await supabase
       .from("tasks")
       .upsert(
         dueTemplates.map((t) => ({
@@ -116,7 +125,12 @@ export async function spawnDueRecurringTasks(
         })),
         { onConflict: "template_id,due_date", ignoreDuplicates: true }
       );
+    if (upsertError) {
+      console.error("spawnDueRecurringTasks: creating tasks failed", upsertError);
+      return false;
+    }
   }
+  return true;
 }
 
 // Called unconditionally on every homepage load (independent of the New
@@ -143,12 +157,16 @@ export async function newDay() {
     return;
   }
 
-  await spawnDueRecurringTasks(supabase, user.id);
-
-  await supabase.from("user_state").upsert(
-    { user_id: user.id, last_recurring_spawn: today, updated_at: new Date().toISOString() },
-    { onConflict: "user_id" }
-  );
+  // Only mark today as done if the spawn worked; otherwise the next page
+  // load tries again (the unique (template_id, due_date) index makes a
+  // retry safe).
+  const ok = await spawnDueRecurringTasks(supabase, user.id);
+  if (ok) {
+    await supabase.from("user_state").upsert(
+      { user_id: user.id, last_recurring_spawn: today, updated_at: new Date().toISOString() },
+      { onConflict: "user_id" }
+    );
+  }
 
   revalidatePath("/");
 }
