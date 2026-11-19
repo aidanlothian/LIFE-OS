@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  background-color: #f2efe6;
+  color: #3a352c;
+}
+
+* {
+  border-color: #ded6c3;
+}
+
+/* Deep Memory canvas (react-grid-layout): restyle its defaults to the
+   notebook theme. The drop-target preview is the accent color instead of
+   the library's red, and the resize grip is a small corner mark. */
+.react-grid-item.react-grid-placeholder {
+  background: #c9971f;
+  opacity: 0.18;
+  border-radius: 8px;
+  transition-duration: 100ms;
+}
+.react-grid-item > .react-resizable-handle {
+  width: 18px;
+  height: 18px;
+  z-index: 2;
+}
+.react-grid-item > .react-resizable-handle::after {
+  right: 5px;
+  bottom: 5px;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid #8c8372;
+  border-bottom: 2px solid #8c8372;
+}
+.react-grid-item.react-draggable-dragging,
+.react-grid-item.resizing {
+  z-index: 3;
+  box-shadow: 0 6px 18px rgba(58, 53, 44, 0.18);
+  border-radius: 8px;
+}
